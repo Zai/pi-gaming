@@ -7,8 +7,10 @@ To add a game:
 """
 from games.hello import HelloGame
 from games.find_key import FindKeyGame
+from games.copy_word import CopyWordGame
 
 GAMES = [
     HelloGame,
     FindKeyGame,
+    CopyWordGame,
 ]
