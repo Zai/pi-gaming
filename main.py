@@ -104,6 +104,7 @@ def run_scene(scene, display, keyboard, cfg):
     - Menu: the selected game class, or None on Esc.
     - Game: None (back to menu).
     """
+    scene.keyboard = keyboard
     frame_time = 1.0 / cfg["fps"]
     last_t = time.monotonic()
     is_menu = isinstance(scene, Menu)

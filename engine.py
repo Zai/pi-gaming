@@ -93,6 +93,14 @@ class Display:
             for xx in range(x, x + w):
                 self.canvas.SetPixel(xx, yy, r, g, b)
 
+    def sprite(self, sprite, x, y, color):
+        """Draw a bitmap sprite (list of strings, '#' = lit pixel)."""
+        r, g, b = color
+        for row, line in enumerate(sprite):
+            for col, ch in enumerate(line):
+                if ch == "#":
+                    self.canvas.SetPixel(x + col, y + row, r, g, b)
+
 
 def _to_color(c):
     if isinstance(c, graphics.Color):
@@ -168,8 +176,16 @@ class Keyboard:
         self.device = self._open(device_path)
         self.layout = LAYOUTS.get(layout, {})
         self.queue = queue.Queue()
+        # Set of currently-held key names (updated on key down/up in the
+        # background thread). Read via is_held(name) for hold-based games.
+        # A plain set is fine here: single-op add/discard vs `in` reads are
+        # atomic under the CPython GIL, we never iterate while mutating.
+        self._held = set()
         self._stop = threading.Event()
         self._thread = None
+
+    def is_held(self, name):
+        return name in self._held
 
     @staticmethod
     def _open(device_path):
@@ -203,13 +219,18 @@ class Keyboard:
             if event.type != evdev.ecodes.EV_KEY:
                 continue
             ke = evdev.categorize(event)
-            # 1 = key down, 2 = key hold (autorepeat), 0 = key up.
-            # We only forward key-down to avoid bouncing.
-            if ke.keystate != ke.key_down:
-                continue
             name = ke.keycode if isinstance(ke.keycode, str) else ke.keycode[0]
-            char = self.layout.get(name) or _keyname_to_char(name)
-            self.queue.put(KeyEvent(event.code, name, char))
+            # 1 = key down, 2 = key hold (autorepeat), 0 = key up.
+            # We forward only key-down to the event queue to avoid bouncing,
+            # but we track key-up too so is_held() stays accurate for
+            # hold-based games. key_hold (autorepeat) is ignored: the key is
+            # already in _held from the initial key_down.
+            if ke.keystate == ke.key_down:
+                self._held.add(name)
+                char = self.layout.get(name) or _keyname_to_char(name)
+                self.queue.put(KeyEvent(event.code, name, char))
+            elif ke.keystate == ke.key_up:
+                self._held.discard(name)
 
     def poll(self):
         """Drain the queue and return the events. Non-blocking."""
@@ -239,8 +260,12 @@ class Game:
     - `on_key(ev)`   : called once per received KeyEvent.
     - `tick(dt)`     : state update (dt in seconds since the previous frame).
     - `render(disp)` : draw on the canvas (clear + swap are handled by the loop).
+
+    `self.keyboard` is injected by the main loop before the first tick,
+    for games that need `keyboard.is_held(name)` (hold-based mechanics).
     """
     name = "SANS NOM"
+    keyboard = None
 
     def on_key(self, event):
         pass

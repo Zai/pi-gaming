@@ -76,11 +76,15 @@ C_DEATH = (255, 80, 80)
 
 
 class Dino:
-    def __init__(self):
+    """Jumper physics. Parameterized so DUO DINO can reuse it."""
+
+    def __init__(self, x, base_y):
+        self.x = x
+        self.base_y = base_y
         self.reset()
 
     def reset(self):
-        self.y = float(DINO_BASE_Y)
+        self.y = float(self.base_y)
         self.vy = 0.0
         self.on_ground = True
 
@@ -94,8 +98,8 @@ class Dino:
             return
         self.vy += GRAVITY * dt
         self.y += self.vy * dt
-        if self.y >= DINO_BASE_Y:
-            self.y = float(DINO_BASE_Y)
+        if self.y >= self.base_y:
+            self.y = float(self.base_y)
             self.vy = 0.0
             self.on_ground = True
 
@@ -104,31 +108,24 @@ class Cactus:
     def __init__(self, x):
         self.x = float(x)
 
-    def tick(self, dt):
-        self.x -= SPEED * dt
+    def tick(self, dt, speed=SPEED):
+        self.x -= speed * dt
 
     @property
     def off_screen(self):
         return self.x + CACT_W < 0
 
 
-def _rects_overlap(ax, ay, aw, ah, bx, by, bw, bh):
+def rects_overlap(ax, ay, aw, ah, bx, by, bw, bh):
     return not (ax + aw <= bx or bx + bw <= ax
                 or ay + ah <= by or by + bh <= ay)
-
-
-def _draw_sprite(display, sprite, x, y, color):
-    for row, line in enumerate(sprite):
-        for col, ch in enumerate(line):
-            if ch == "#":
-                display.pixel(x + col, y + row, color)
 
 
 class DinoGame(Game):
     name = "DINO"
 
     def __init__(self):
-        self.dino = Dino()
+        self.dino = Dino(x=DINO_X, base_y=DINO_BASE_Y)
         self.cacti = []
         self.spawn_timer = SPAWN_MAX_S
         self.score_time = 0.0
@@ -168,13 +165,13 @@ class DinoGame(Game):
     def _collides(self):
         dy = int(self.dino.y)
         for c in self.cacti:
-            if _rects_overlap(DINO_X, dy, DINO_W, DINO_H,
-                              int(c.x), CACT_TOP_Y, CACT_W, CACT_H):
+            if rects_overlap(self.dino.x, dy, DINO_W, DINO_H,
+                             int(c.x), CACT_TOP_Y, CACT_W, CACT_H):
                 return True
         return False
 
     def _restart(self):
-        self.dino = Dino()
+        self.dino = Dino(x=DINO_X, base_y=DINO_BASE_Y)
         self.cacti = []
         self.spawn_timer = SPAWN_MAX_S
         self.score_time = 0.0
@@ -185,10 +182,11 @@ class DinoGame(Game):
         display.rect(0, GROUND_Y, display.width, 1, C_GROUND)
 
         for c in self.cacti:
-            _draw_sprite(display, CACTUS_SPRITE, int(c.x), CACT_TOP_Y, C_CACTUS)
+            display.sprite(CACTUS_SPRITE, int(c.x), CACT_TOP_Y, C_CACTUS)
 
         dino_color = C_DINO_DEAD if self.death_timer > 0 else C_DINO
-        _draw_sprite(display, DINO_SPRITE, DINO_X, int(self.dino.y), dino_color)
+        display.sprite(DINO_SPRITE, int(self.dino.x), int(self.dino.y),
+                       dino_color)
 
         score_txt = str(int(self.score_time * SCORE_PER_SECOND))
         display.text("small",
