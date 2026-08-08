@@ -67,7 +67,8 @@ class FindKeyGame(Game):
         else:
             top_color = (0, 200, 255)
             target_color = (255, 200, 0)
-            top_text = "TROUVE LA TOUCHE"
+            top_text = ("TROUVE LE CHIFFRE" if self.target.isdigit()
+                        else "TROUVE LA LETTRE")
 
         display.text_centered("small", 8, top_color, top_text)
         # Repeat the target three times across the 192 px screen so it
