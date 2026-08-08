@@ -8,19 +8,21 @@ To add a game:
 from games.hello import HelloGame
 from games.find_key import FindKeyGame
 from games.copy_word import CopyWordGame
+from games.count import CountGame
 from games.dino import DinoGame
+from games.duo_dino import DuoDinoGame
 from games.bridge import BridgeGame
 from games.boat import BoatGame
 from games.basket import BasketGame
-from games.duo_dino import DuoDinoGame
 
 GAMES = [
     HelloGame,
     FindKeyGame,
     CopyWordGame,
+    CountGame,
     DinoGame,
+    DuoDinoGame,
     BridgeGame,
     BoatGame,
     BasketGame,
-    DuoDinoGame,
 ]
