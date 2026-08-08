@@ -6,7 +6,9 @@ To add a game:
 3. Append it to the `GAMES` list (menu order = list order).
 """
 from games.hello import HelloGame
+from games.find_key import FindKeyGame
 
 GAMES = [
     HelloGame,
+    FindKeyGame,
 ]
