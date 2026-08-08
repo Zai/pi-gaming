@@ -108,6 +108,32 @@ def _font_char_width(rel_path):
 
 # ---------- Keyboard --------------------------------------------------------
 
+# evdev remonte des keycodes physiques (KEY_Q = touche en haut a gauche de la
+# rangee du milieu, quelle que soit l'etiquette imprimee dessus). Sur un OS
+# configure en QWERTY US avec un clavier FR branche, la touche marquee "A"
+# genere KEY_Q. Ce dict remappe le keycode -> caractere visible par l'user.
+#
+# Les chiffres (KEY_1..KEY_0) sont laisses au defaut : ils renvoient deja
+# leur chiffre quelle que soit la disposition (pas besoin de Shift, c'est ce
+# que veut le mode "Azerty/Numerique").
+LAYOUTS = {
+    "qwerty": {},  # pas de remap : comportement par defaut.
+    "azerty": {
+        # Rangee du haut (AZERTY : A Z E R T Y ...)
+        "KEY_Q": "A", "KEY_W": "Z",
+        # Rangee du milieu (AZERTY : Q S D F G H J K L M)
+        "KEY_A": "Q",
+        "KEY_SEMICOLON": "M",
+        # Rangee du bas (AZERTY : W X C V B N , ; : !)
+        "KEY_Z": "W",
+        "KEY_M": ",",
+        "KEY_COMMA": ";",
+        "KEY_DOT": ":",
+        "KEY_SLASH": "!",
+    },
+}
+
+
 class KeyEvent:
     """Un appui touche. `char` est la lettre/chiffre (A-Z, 0-9) ou None
     pour les touches speciales (fleches, entree, esc, ...).
@@ -134,13 +160,14 @@ class Keyboard:
             handle(ev)
     """
 
-    def __init__(self, device_path=None):
+    def __init__(self, device_path=None, layout="qwerty"):
         if evdev is None:
             raise RuntimeError(
                 "Le paquet Python 'evdev' est manquant. "
                 "Lance install.sh ou : pip install evdev"
             )
         self.device = self._open(device_path)
+        self.layout = LAYOUTS.get(layout, {})
         self.queue = queue.Queue()
         self._stop = threading.Event()
         self._thread = None
@@ -182,7 +209,8 @@ class Keyboard:
             if ke.keystate != ke.key_down:
                 continue
             name = ke.keycode if isinstance(ke.keycode, str) else ke.keycode[0]
-            self.queue.put(KeyEvent(event.code, name, _keyname_to_char(name)))
+            char = self.layout.get(name) or _keyname_to_char(name)
+            self.queue.put(KeyEvent(event.code, name, char))
 
     def poll(self):
         """Vide la queue et retourne la liste des events. Non bloquant."""

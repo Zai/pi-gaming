@@ -129,6 +129,38 @@ Identique au worldclock : `rows`, `cols`, `chain_length`, `parallel`,
 - `device` : chemin absolu (`/dev/input/event3`) OU `null` pour
   l'auto-detection (choisit le premier device qui a KEY_A + KEY_Z + KEY_ENTER
   dans ses capacites).
+- `layout` : `"qwerty"` (defaut) ou `"azerty"`. A mettre a `"azerty"` si
+  le clavier physique est FR : la touche marquee "A" renverra bien `'A'`,
+  "M" renverra `'M'`, etc. Les chiffres du haut restent des chiffres (pas
+  besoin de Shift, mode "Azerty/Numerique").
+  Note : evdev lit les keycodes **physiques** (independants du layout
+  X/console). Ce reglage n'a donc rien a voir avec ce que dit `raspi-config`
+  ou `setxkbmap` — il faut le mettre a `"azerty"` des que le clavier
+  branche est un clavier FR, quel que soit le layout de l'OS.
+
+  Ajouter un layout = ajouter une entree au dict `LAYOUTS` dans `engine.py`
+  (mapping keycode evdev -> caractere visible).
+
+### Aller plus loin : xkbcommon (non retenu ici)
+
+Le remap manuel par dict marche tant qu'on ne vise que A-Z + 0-9. Pour
+gerer proprement N'IMPORTE quel layout (dead keys `^` / `¨`, AltGr,
+symboles, autres langues), la solution "propre" est
+[`libxkbcommon`](https://xkbcommon.org/) — le moteur de layout utilise en
+interne par X11 et Wayland — via son binding Python `python-xkbcommon` :
+
+```python
+# Esquisse — non implemente ici.
+from xkbcommon import xkb
+ctx = xkb.Context()
+keymap = ctx.keymap_new_from_names(layout="fr", variant="azerty")
+state = keymap.state_new()
+# Dans le thread evdev : state.key_get_utf8(evdev_keycode + 8) -> str
+```
+
+Cout : une dep C (`libxkbcommon-dev` en apt) + une quinzaine de lignes
+de wrap dans `engine.py`. A envisager le jour ou on veut des accents
+francais, des mots avec ponctuation, ou plusieurs langues.
 
 ### Bloc `font`
 `small` / `medium` / `big` : chemins vers des BDF **monospace** (la largeur

@@ -40,6 +40,10 @@ DEFAULTS = {
         # None => auto-detection du premier vrai clavier dans /dev/input.
         # Sinon, chemin explicite (ex. "/dev/input/event3").
         "device": None,
+        # "qwerty" ou "azerty". "azerty" = clavier FR branche sur un OS US :
+        # la touche marquee "A" renvoie 'A', "M" renvoie 'M', etc. Les
+        # chiffres du haut restent des chiffres (pas besoin de Shift).
+        "layout": "qwerty",
     },
     "fps": 30,
 }
@@ -75,9 +79,11 @@ class Menu(Game):
         self.selected = None
 
     def on_key(self, event):
-        if event.name in ("KEY_LEFT", "KEY_A"):
+        # `char` est post-layout : les raccourcis A/D marchent en qwerty
+        # comme en azerty (l'user tape la touche qui affiche A ou D).
+        if event.name == "KEY_LEFT" or event.char == "A":
             self.index = (self.index - 1) % len(self.games)
-        elif event.name in ("KEY_RIGHT", "KEY_D"):
+        elif event.name == "KEY_RIGHT" or event.char == "D":
             self.index = (self.index + 1) % len(self.games)
         elif event.name in ("KEY_ENTER", "KEY_KPENTER", "KEY_SPACE"):
             self.selected = self.games[self.index]
@@ -144,7 +150,7 @@ def _no_games_screen(display):
 def main():
     cfg = load_config()
     display = Display(cfg["panel"], cfg["font"])
-    keyboard = Keyboard(cfg["keyboard"]["device"])
+    keyboard = Keyboard(cfg["keyboard"]["device"], cfg["keyboard"]["layout"])
     keyboard.start()
 
     if not GAMES:
