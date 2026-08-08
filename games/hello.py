@@ -1,13 +1,13 @@
-"""Jeu de demo minimal : affiche la derniere touche pressee au centre.
+"""Minimal demo game: shows the last key pressed at the center of the screen.
 
-Sert a valider que la matrice, le clavier et la boucle de rendu marchent.
-Se remplace ou se supprime des qu'un vrai jeu existe.
+Used to verify that the matrix, the keyboard and the render loop are wired
+up correctly. Delete or replace it once a real game exists.
 """
 from engine import Game
 
 
 class HelloGame(Game):
-    name = "HELLO"
+    name = "BONJOUR"
 
     def __init__(self):
         self.last = "?"
@@ -16,7 +16,7 @@ class HelloGame(Game):
         if event.char is not None:
             self.last = event.char.upper()
         else:
-            # Touche speciale : on affiche son nom court (SPACE, LEFT, ENTER...).
+            # Special key: show its short name (SPACE, LEFT, ENTER...).
             self.last = event.name.replace("KEY_", "")[:6]
 
     def render(self, display):

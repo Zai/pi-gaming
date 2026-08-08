@@ -54,10 +54,10 @@ il ne casse rien.
 Un jeu = une classe qui herite de `engine.Game` :
 
 ```python
-# games/mon_jeu.py
+# games/my_game.py
 from engine import Game
 
-class MonJeu(Game):
+class MyGame(Game):
     name = "MON JEU"          # affiche au menu
 
     def on_key(self, event):  # une touche pressee (event.name, event.char)
@@ -73,8 +73,8 @@ class MonJeu(Game):
 Puis dans `games/__init__.py` :
 
 ```python
-from games.mon_jeu import MonJeu
-GAMES = [HelloGame, MonJeu]
+from games.my_game import MyGame
+GAMES = [HelloGame, MyGame]
 ```
 
 Redemarre : `sudo systemctl restart pigaming`. Le jeu apparait au menu.

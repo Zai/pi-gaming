@@ -1,9 +1,9 @@
-"""Registre des jeux disponibles au menu.
+"""Registry of games shown in the menu.
 
-Pour ajouter un jeu :
-1. Cree `games/mon_jeu.py` avec une classe qui herite de `engine.Game`.
-2. Importe-la ici.
-3. Ajoute-la a la liste `GAMES` (dans l'ordre d'affichage au menu).
+To add a game:
+1. Create `games/my_game.py` with a class inheriting from `engine.Game`.
+2. Import it here.
+3. Append it to the `GAMES` list (menu order = list order).
 """
 from games.hello import HelloGame
 

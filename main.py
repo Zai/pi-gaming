@@ -1,16 +1,15 @@
 #!/usr/bin/env python3
-"""pi-gaming - plateforme de mini-jeux educatifs sur matrice LED HUB75.
+"""pi-gaming - educational mini-games platform on a HUB75 LED matrix.
 
-Squelette :
-- 3 panneaux LED 64x32 chaines (comme worldclock) = 192x32 pixels.
-- Clavier USB lu via evdev (thread background).
-- Menu de selection (fleches gauche/droite, Entree pour lancer,
-  Echap pour revenir au menu).
+Skeleton:
+- 3 chained 64x32 LED panels (same as worldclock) = 192x32 pixels.
+- USB keyboard read through evdev (background thread).
+- Selection menu (left/right arrows, Enter to launch, Esc to go back).
 
-Ajouter un jeu : voir `games/__init__.py`.
+See `games/__init__.py` to add a game.
 
-Toutes les cles ci-dessous ont un defaut raisonnable. `config.json`
-ne contient QUE ce que tu veux surcharger (deep-merge).
+All the keys below have sensible defaults. `config.json` only carries what
+you want to override (deep-merged onto DEFAULTS).
 """
 import json
 import os
@@ -37,12 +36,12 @@ DEFAULTS = {
         "big": "fonts/7x13.bdf",
     },
     "keyboard": {
-        # None => auto-detection du premier vrai clavier dans /dev/input.
-        # Sinon, chemin explicite (ex. "/dev/input/event3").
+        # None => auto-detect the first real keyboard under /dev/input.
+        # Otherwise, an explicit path (e.g. "/dev/input/event3").
         "device": None,
-        # "qwerty" ou "azerty". "azerty" = clavier FR branche sur un OS US :
-        # la touche marquee "A" renvoie 'A', "M" renvoie 'M', etc. Les
-        # chiffres du haut restent des chiffres (pas besoin de Shift).
+        # "qwerty" or "azerty". "azerty" = French keyboard on a US OS:
+        # the key labeled "A" produces 'A', "M" produces 'M', etc. The top
+        # row still produces digits (no Shift required).
         "layout": "qwerty",
     },
     "fps": 30,
@@ -67,10 +66,10 @@ def load_config():
         return deep_merge(DEFAULTS, json.load(f))
 
 
-# ---------- Menu de selection -----------------------------------------------
+# ---------- Selection menu --------------------------------------------------
 
 class Menu(Game):
-    """Ecran de selection. Signale son choix via `self.selected`."""
+    """Selection screen. Signals its choice through `self.selected`."""
     name = "MENU"
 
     def __init__(self, games):
@@ -79,8 +78,8 @@ class Menu(Game):
         self.selected = None
 
     def on_key(self, event):
-        # `char` est post-layout : les raccourcis A/D marchent en qwerty
-        # comme en azerty (l'user tape la touche qui affiche A ou D).
+        # `char` is post-layout: the A/D shortcuts work identically under
+        # qwerty and azerty (the user types the key labeled A or D).
         if event.name == "KEY_LEFT" or event.char == "A":
             self.index = (self.index - 1) % len(self.games)
         elif event.name == "KEY_RIGHT" or event.char == "D":
@@ -96,14 +95,14 @@ class Menu(Game):
                               f"< {self.index + 1}/{len(self.games)} >")
 
 
-# ---------- Boucle de scene -------------------------------------------------
+# ---------- Scene loop ------------------------------------------------------
 
 def run_scene(scene, display, keyboard, cfg):
-    """Fait tourner une scene jusqu'a Echap (ou choix, pour le menu).
+    """Run a scene until Esc (or, for the menu, until a game is picked).
 
-    Retour :
-    - Menu : classe du jeu selectionne, ou None si Echap.
-    - Jeu  : None (retour au menu).
+    Returns:
+    - Menu: the selected game class, or None on Esc.
+    - Game: None (back to menu).
     """
     frame_time = 1.0 / cfg["fps"]
     last_t = time.monotonic()
@@ -131,7 +130,7 @@ def run_scene(scene, display, keyboard, cfg):
             time.sleep(frame_time - elapsed)
 
 
-# ---------- Ecran "aucun jeu" -----------------------------------------------
+# ---------- "No game" screen ------------------------------------------------
 
 def _no_games_screen(display):
     display.clear()
@@ -161,7 +160,7 @@ def main():
     try:
         while True:
             next_cls = run_scene(menu, display, keyboard, cfg)
-            if next_cls is None:  # Echap dans le menu = on quitte.
+            if next_cls is None:  # Esc in the menu = exit.
                 break
             menu.selected = None
             run_scene(next_cls(), display, keyboard, cfg)

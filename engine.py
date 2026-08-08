@@ -1,12 +1,12 @@
-"""Moteur pi-gaming : matrice LED HUB75, clavier evdev, classe Game de base.
+"""pi-gaming engine: LED matrix display, evdev keyboard, base Game class.
 
-Trois briques :
+Three building blocks:
 
-- `Display`  : wrap `RGBMatrix` + polices BDF + primitives de dessin.
-- `Keyboard` : lit /dev/input/event* dans un thread, pousse les events dans
-               une queue non bloquante. Auto-detecte le premier vrai clavier
-               (celui qui a KEY_A + KEY_Z + KEY_ENTER dans ses capacites).
-- `Game`     : interface a heriter pour chaque jeu (on_key / tick / render).
+- `Display`  : wraps `RGBMatrix` + BDF fonts + drawing primitives.
+- `Keyboard` : reads /dev/input/event* in a background thread, pushes events
+               to a non-blocking queue. Auto-detects the first real keyboard
+               (one whose capabilities include KEY_A + KEY_Z + KEY_ENTER).
+- `Game`     : base class each game inherits from (on_key / tick / render).
 """
 import os
 import queue
@@ -16,8 +16,8 @@ from rgbmatrix import RGBMatrix, RGBMatrixOptions, graphics
 
 try:
     import evdev
-except ImportError:  # evdev absent : le module se charge quand meme,
-    evdev = None      # Keyboard levera une erreur claire a l'instanciation.
+except ImportError:  # If evdev is missing the module still imports;
+    evdev = None      # Keyboard raises a clear error on instantiation.
 
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
@@ -26,11 +26,10 @@ BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 # ---------- Display ---------------------------------------------------------
 
 class Display:
-    """Matrice LED + polices + helpers de dessin.
+    """LED matrix + fonts + drawing helpers.
 
-    Les polices sont chargees depuis `font_cfg` (dict {nom: chemin.bdf}).
-    Les noms utilises dans `text(...)` / `text_centered(...)` doivent
-    matcher les cles de ce dict.
+    Fonts are loaded from `font_cfg` (a `{name: bdf_path}` dict). The names
+    used later in `text(...)` / `text_centered(...)` must match those keys.
     """
 
     def __init__(self, panel_cfg, font_cfg):
@@ -55,8 +54,8 @@ class Display:
             o.pixel_mapper_config = panel["pixel_mapper_config"]
         if panel.get("disable_hardware_pulsing"):
             o.disable_hardware_pulsing = True
-        # rgbmatrix bascule de root a `daemon` apres avoir pris les GPIO ;
-        # on desactive pour garder l'acces aux fichiers /home/<user> (mode 700).
+        # rgbmatrix drops from root to `daemon` after grabbing the GPIOs;
+        # we disable that so we keep access to /home/<user> files (mode 700).
         o.drop_privileges = False
         return RGBMatrix(options=o)
 
@@ -102,29 +101,29 @@ def _to_color(c):
 
 
 def _font_char_width(rel_path):
-    # Nos BDF sont monospace : "5x7.bdf" -> largeur 5 px/glyph.
+    # Our BDF fonts are monospace: "5x7.bdf" -> 5 px per glyph.
     return int(os.path.basename(rel_path).split("x", 1)[0])
 
 
 # ---------- Keyboard --------------------------------------------------------
 
-# evdev remonte des keycodes physiques (KEY_Q = touche en haut a gauche de la
-# rangee du milieu, quelle que soit l'etiquette imprimee dessus). Sur un OS
-# configure en QWERTY US avec un clavier FR branche, la touche marquee "A"
-# genere KEY_Q. Ce dict remappe le keycode -> caractere visible par l'user.
+# evdev reports physical keycodes (KEY_Q = the key at the top-left of the
+# home row, regardless of the label printed on it). With an OS configured for
+# US QWERTY and a physical French keyboard plugged in, the key labeled "A"
+# generates KEY_Q. This dict remaps keycode -> character seen by the user.
 #
-# Les chiffres (KEY_1..KEY_0) sont laisses au defaut : ils renvoient deja
-# leur chiffre quelle que soit la disposition (pas besoin de Shift, c'est ce
-# que veut le mode "Azerty/Numerique").
+# Digits (KEY_1..KEY_0) are left at their default: they already produce the
+# expected digit regardless of layout (no Shift needed), which is exactly
+# what we want for the "Azerty/Numeric" mode.
 LAYOUTS = {
-    "qwerty": {},  # pas de remap : comportement par defaut.
+    "qwerty": {},  # no remap: default behavior.
     "azerty": {
-        # Rangee du haut (AZERTY : A Z E R T Y ...)
+        # Top row (AZERTY: A Z E R T Y ...)
         "KEY_Q": "A", "KEY_W": "Z",
-        # Rangee du milieu (AZERTY : Q S D F G H J K L M)
+        # Home row (AZERTY: Q S D F G H J K L M)
         "KEY_A": "Q",
         "KEY_SEMICOLON": "M",
-        # Rangee du bas (AZERTY : W X C V B N , ; : !)
+        # Bottom row (AZERTY: W X C V B N , ; : !)
         "KEY_Z": "W",
         "KEY_M": ",",
         "KEY_COMMA": ";",
@@ -135,8 +134,8 @@ LAYOUTS = {
 
 
 class KeyEvent:
-    """Un appui touche. `char` est la lettre/chiffre (A-Z, 0-9) ou None
-    pour les touches speciales (fleches, entree, esc, ...).
+    """A single key press. `char` is the letter/digit (A-Z, 0-9) or None
+    for special keys (arrows, enter, esc, ...).
     """
     __slots__ = ("code", "name", "char")
 
@@ -150,21 +149,21 @@ class KeyEvent:
 
 
 class Keyboard:
-    """Lit un clavier USB via evdev dans un thread background.
+    """Reads a USB keyboard through evdev in a background thread.
 
-    Utilisation :
-        kb = Keyboard()          # auto-detection
+    Usage:
+        kb = Keyboard()          # auto-detect
         kb.start()
         ...
-        for ev in kb.poll():     # non bloquant, retourne les events KEY_DOWN
+        for ev in kb.poll():     # non-blocking, returns KEY_DOWN events
             handle(ev)
     """
 
     def __init__(self, device_path=None, layout="qwerty"):
         if evdev is None:
             raise RuntimeError(
-                "Le paquet Python 'evdev' est manquant. "
-                "Lance install.sh ou : pip install evdev"
+                "The 'evdev' Python package is missing. "
+                "Run install.sh or: pip install evdev"
             )
         self.device = self._open(device_path)
         self.layout = LAYOUTS.get(layout, {})
@@ -176,8 +175,8 @@ class Keyboard:
     def _open(device_path):
         if device_path:
             return evdev.InputDevice(device_path)
-        # Auto-detection : un vrai clavier expose au moins A + Z + ENTER.
-        # (Un pave numerique isole ou une manette n'aurait pas KEY_A.)
+        # Auto-detect: a real keyboard exposes at least A + Z + ENTER.
+        # (A stand-alone numpad or a gamepad wouldn't have KEY_A.)
         required = {evdev.ecodes.KEY_A, evdev.ecodes.KEY_Z, evdev.ecodes.KEY_ENTER}
         for path in evdev.list_devices():
             dev = evdev.InputDevice(path)
@@ -186,8 +185,8 @@ class Keyboard:
                 return dev
             dev.close()
         raise RuntimeError(
-            "Aucun clavier detecte dans /dev/input/. "
-            "Renseigne `keyboard.device` (ex. /dev/input/event3) dans config.json."
+            "No keyboard detected in /dev/input/. "
+            "Set `keyboard.device` (e.g. /dev/input/event3) in config.json."
         )
 
     def start(self):
@@ -204,8 +203,8 @@ class Keyboard:
             if event.type != evdev.ecodes.EV_KEY:
                 continue
             ke = evdev.categorize(event)
-            # 1 = key down, 2 = key hold (repeat), 0 = key up.
-            # On ne remonte que le down pour eviter les rebonds.
+            # 1 = key down, 2 = key hold (autorepeat), 0 = key up.
+            # We only forward key-down to avoid bouncing.
             if ke.keystate != ke.key_down:
                 continue
             name = ke.keycode if isinstance(ke.keycode, str) else ke.keycode[0]
@@ -213,7 +212,7 @@ class Keyboard:
             self.queue.put(KeyEvent(event.code, name, char))
 
     def poll(self):
-        """Vide la queue et retourne la liste des events. Non bloquant."""
+        """Drain the queue and return the events. Non-blocking."""
         events = []
         while True:
             try:
@@ -223,7 +222,7 @@ class Keyboard:
 
 
 def _keyname_to_char(name):
-    """`KEY_A` -> 'A', `KEY_1` -> '1', autres -> None."""
+    """`KEY_A` -> 'A', `KEY_1` -> '1', anything else -> None."""
     if name.startswith("KEY_") and len(name) == 5:
         c = name[4]
         if c.isalnum():
@@ -234,12 +233,12 @@ def _keyname_to_char(name):
 # ---------- Game ------------------------------------------------------------
 
 class Game:
-    """Classe de base d'un jeu. A heriter dans games/<mon_jeu>.py.
+    """Base class for a game. Subclass it in games/<my_game>.py.
 
-    - `name`         : nom court affiche au menu (attribut de classe).
-    - `on_key(ev)`   : appele pour chaque KeyEvent recu (une seule fois par appui).
-    - `tick(dt)`     : mise a jour de l'etat (dt en secondes depuis la frame precedente).
-    - `render(disp)` : dessin sur le canvas (le clear + swap sont geres par la loop).
+    - `name`         : short label shown in the menu (class attribute).
+    - `on_key(ev)`   : called once per received KeyEvent.
+    - `tick(dt)`     : state update (dt in seconds since the previous frame).
+    - `render(disp)` : draw on the canvas (clear + swap are handled by the loop).
     """
     name = "SANS NOM"
 
